@@ -13,7 +13,7 @@ class Scanner
     char advance();
     void skipSpace();
     std::string getWord();
-    bool isGreLessThan();
+    bool isGreLessThan(const char& c);
     
     Token creatToken(TokenType type,const std::string & std="");
 

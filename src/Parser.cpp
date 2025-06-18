@@ -1,7 +1,12 @@
 #include "Parser.h"
+#include "Token.h"
+#include "DebuggerLog.h"
+#include "Ast.h"
 #include "Global.h"
 #include <sys/wait.h>
 #include <unistd.h>
+#include <memory>
+#include <type_traits>
 
 Token Parser::peek()
 {
@@ -38,58 +43,96 @@ std::shared_ptr<Command> Parser::parseSimpleComm() {
     currentArgs.clear();
     Token cmdToken = advance();
     std::string name = cmdToken.value;
-    // currentArgs.push_back(name);
+    currentArgs.push_back(name);  // Include command name as first argument
 
     while(check(TokenType::WORD)) {
         currentArgs.push_back(advance().value);
     }
-
-    if (auto cmd = CommandRegistry::getCmd(name))
-    {
-        // std::cout<<"WE GOT comm COMMANDREGISTRY"<<std::endl;
-        if (auto builtinCmd = dynamic_cast<InBuiltCmd*>(cmd))
-        {
-            auto cmdPtr = std::shared_ptr<InBuiltCmd>(builtinCmd, [](InBuiltCmd*) {
-                /* Empty deleter - we don't own the pointer */
-            });
-            
-            if (cmdPtr) {
-                cmdPtr->setArgs(currentArgs);
-                return cmdPtr;
-            }
-        }
+    
+    DB("Parsing Simple Command.");
+    if (auto cmd = CommandRegistry::getCmd(name)) {
+        cmd->setArgs(currentArgs);
+        cmd->name = name;
+        cmd->isBuiltIn = true;
+        DB("parsed Simple Command || got inbuilt command.");
+        return cmd;
     }
+    
+    // For external commands, create a SimpleCommand
+    auto cmd = std::make_shared<SimpleCommand>(name, currentArgs);
+    cmd->name = name;
+    DB("Created external command");
+    return cmd;
+}
 
-
-    std::string fullPath=getENVPath(name);
-    if(fullPath!="")
+std::shared_ptr<Command> Parser::parseRedirectionComm()
+{
+    std::shared_ptr<Command> cmd=parseSimpleComm();
+    if(!cmd)return nullptr;
+    
+    if(check(TokenType::REDIRECT_OUT)||check(TokenType::REDIRECT_IN))
     {
-        pid_t pid=fork();
-        if(pid==-1)perror("fork failed");
-        else if(pid==0)
+        int file_mode = O_TRUNC;
+        Token redirect=advance();
+
+        if(!(check(TokenType::WORD)))
         {
-            std::vector<char*> argV;
-            for(std::string&arg : currentArgs)argV.push_back(const_cast<char*>(arg.c_str()));
-            argV.push_back(nullptr);
-            execv(fullPath.c_str(),argV.data());
+            std::cerr << "Syntax error: Expected filename after redirection token '" << redirect.getType() << "'" << std::endl;
+            return nullptr;
         }
-        else
-        {
-            int status;
-            waitpid(pid,&status,0);
-        }
+        Token file_name =advance();
+        int redirect_mode=(redirect.type==REDIRECT_IN)?0:1;
+        int fd_to_redirect = (redirect.type == TokenType::REDIRECT_IN) ? STDIN_FILENO : STDOUT_FILENO;
+        return std::make_shared<RedirectCommand>(cmd,file_name.value,fd_to_redirect,redirect_mode,file_mode);
     }
-    else
+    else if(check(TokenType::REDIRECT_IN_APP)||check(TokenType::REDIRECT_OUT_APP))
     {
-        std::cout<<name<<": command not found"<<std::endl;
+        int file_mode = O_APPEND;
+        Token redirect=advance();
+
+        if(!(check(TokenType::WORD)))
+        {
+            std::cerr << "Syntax error: Expected filename after redirection token '" << redirect.getType() << "'" << std::endl;
+            return nullptr;
+        }
+        Token file_name =advance();
+        int redirect_mode=(redirect.type==REDIRECT_IN_APP)?0:1;
+        int fd_to_redirect = (redirect.type == TokenType::REDIRECT_IN_APP) ? STDIN_FILENO : STDOUT_FILENO;
+        return std::make_shared<RedirectCommand>(cmd,file_name.value,fd_to_redirect,redirect_mode,file_mode);
     }
-
-
-    return nullptr;
+    else if(check(TokenType::IO_NUMBER))
+    {
+        int file_mode = O_TRUNC;
+        Token tok = advance();
+        if(!(check(TokenType::REDIRECT_IN_APP)||check(TokenType::REDIRECT_OUT_APP)||check(TokenType::REDIRECT_OUT)||check(TokenType::REDIRECT_IN))) {
+            std::cerr << "Syntax error: Expected IO_NUMBER token, found WORD '" << tok.value << "'" << std::endl;
+            return nullptr;
+        }
+        std::string redirect = advance().value;
+        if (redirect.size() < 1) {
+            std::cerr << "Syntax error: Invalid IO_NUMBER token '" << redirect << "'" << std::endl;
+            return nullptr;
+        }
+        int fd = tok.value[0] - '0';
+        int redirect_mode = (redirect.back() == '<') ? 0 : 1;
+        // Check for double redirection (e.g., "2>>" or "1<<")
+        if (redirect.size() >= 2) {
+            std::string last_two = redirect.substr(redirect.size() - 2, 2);
+            if (last_two == "<<") redirect_mode = 0;
+            else if (last_two == ">>") {redirect_mode = 1;file_mode=O_APPEND;}
+        }
+        if (!(check(TokenType::WORD))) {
+            std::cerr << "Syntax error: Expected filename after redirection token '" << tok.getType() << "'" << std::endl;
+            return nullptr;
+        }
+        Token file_name = advance();
+        return std::make_shared<RedirectCommand>(cmd, file_name.value, fd, redirect_mode,file_mode);
+    }
+    return cmd;
 }
 
 std::shared_ptr<Command> Parser::parseCommand() {
-    return parseSimpleComm();
+    return parseRedirectionComm();
 }
 
 std::shared_ptr<Command> Parser::parse()

@@ -8,6 +8,10 @@ enum TokenType {
     TOKEN_NAME,
     TOKEN_NEWLINE,
     IO_NUMBER,
+    REDIRECT_IN,
+    REDIRECT_OUT,
+    REDIRECT_IN_APP,
+    REDIRECT_OUT_APP,
 
     // Operators
     TOKEN_AND_IF, TOKEN_OR_IF, TOKEN_DSEMI,
@@ -37,7 +41,7 @@ std::string tokenToString(TokenType type);
 struct Token {
     TokenType type;
     std::string value;
-    std::string getType(){return tokenToString(type);}
+    std::string getType() {return tokenToString(type);}
 };
 
 inline std::string tokenToString(TokenType type) {
@@ -82,6 +86,10 @@ inline std::string tokenToString(TokenType type) {
         case TOKEN_LPAREN: return "LPAREN";
         case TOKEN_RPAREN: return "RPAREN";
         case TOKEN_EOF: return "EOF_TOKEN";
+        case REDIRECT_IN: return "REDIRECT_IN";
+        case REDIRECT_OUT: return "REDIRECT_OUT";
+        case REDIRECT_IN_APP: return "REDIRECT_IN_APP";
+        case REDIRECT_OUT_APP: return "REDIRECT_OUT_APP";
         default: return "UNKNOWN";
     }
 }

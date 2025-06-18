@@ -4,7 +4,7 @@
 #include <memory>
 #include "Token.h"
 #include "InBuilt.h"
-
+#include "DebuggerLog.h"
 
 
 class Parser {
@@ -21,6 +21,7 @@ class Parser {
     public:
     Parser(std::vector<Token> Tokens) : Tokens(std::move(Tokens)) {}
     std::shared_ptr<Command> parseSimpleComm();
+    std::shared_ptr<Command> parseRedirectionComm();
     std::shared_ptr<Command> parseCommand();
     std::shared_ptr<Command> parse();
 };

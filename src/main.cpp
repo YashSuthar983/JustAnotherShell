@@ -25,7 +25,10 @@
 #include "InBuilt.h"
 #include "Global.h"
 #include "Parser.h"
+#include "Executer.h"
+#include "DebuggerLog.h"
 
+bool debug=false;
 enum ReDirectionType
 {
   ReInput,
@@ -40,69 +43,60 @@ struct ReDirection
   std::string target;
 };
 
-int main()
+int main(int argc, char* argv[])
 {
+    if(argc == 2 && (std::string)argv[1] == "debug") {
+        debug = true;
+    }
+    
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
     std::string input;
 
-    getcwd(cwd,sizeof(cwd));
+    getcwd(cwd, sizeof(cwd));
     setupCommands();
 
-    while(true)
-    {
-      std::cout << "$ ";
+    while(true) {
+        std::cout << "$ ";
+        curr = 0;
+        
+        if(!std::getline(std::cin, input)) {
+            // Handle EOF (Ctrl+D)
+            std::cout << std::endl;
+            break;
+        }
+        
+        if(input.empty()) {
+            continue;
+        }
+        
+        DB("Input: " + input);
+        
+        Scanner scanner(input);
+        std::vector<Token> tokens = scanner.scanToken();
+        
+        if(tokens.empty()) {
+            DB("No tokens found");
+            continue;
+        }
+        
+        DB("Token count: " + std::to_string(tokens.size()));
+        for(auto& token : tokens) {
+            DB("Token: " + token.value +" : Type "+token.getType());
+        }
+        
+        Parser parser(tokens);
+        std::shared_ptr<Command> cmd = parser.parse();
 
-      curr=0;
-      std::getline(std::cin, input);
-      if(input.empty())continue;      Scanner scanner(input);
-      std::vector<Token> Tokens = scanner.scanToken();
-      Parser parser(Tokens);
-
-      for(auto&x:Tokens)std::cout<<x.value<<" ";
-      std::cout<<std::endl;
-
-      std::shared_ptr<Command> cmd = parser.parse();
-
-      if(cmd)
-      {
-        std::string output = cmd->execute();
-        std::cout << output;
-      }
-
-
-      // std::vector<std::string> tokens=ParseCommand(input);
-
-      // std::string headCommand= getNextToken(tokens);
-
-      // Command* cmd=CommandRegistry::getCmd(headCommand);
-      // if(cmd!=nullptr)cmd->execute(tokens);
-      // else
-      // {
-      //   std::string fullPath=getENVPath(headCommand);
-      //   if(fullPath!="")
-      //   {
-      //       pid_t pid=fork();
-      //       if(pid==-1)perror("fork failed");
-      //       else if(pid==0)
-      //       {
-      //         std::vector<char*> argV;
-
-      //         for(std::string&arg : tokens)argV.push_back(const_cast<char*>(arg.c_str()));
-      //         argV.push_back(nullptr);
-      //         execv(fullPath.c_str(),argV.data());
-      //       }
-      //       else
-      //       {
-      //         int status;
-      //         waitpid(pid,&status,0);
-      //       }
-      //   }
-      //   else
-      //   {
-      //     std::cout<<headCommand<<": command not found"<<std::endl;
-      //   }
-      // }
-
+        if(cmd) {
+            DB("Executing command: " + cmd->name + " with " + 
+               std::to_string(cmd->args.size()) + " arguments");
+            interpret(cmd);
+            // std::cout << output;
+        } else {
+            DB("Failed to parse command");
+        }
     }
+    
+    return 0;
 }
