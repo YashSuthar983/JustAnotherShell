@@ -27,6 +27,7 @@
 #include "Parser.h"
 #include "Executer.h"
 #include "DebuggerLog.h"
+#include "ReadlineCus/ReadlineCus.h"
 
 bool debug=false;
 enum ReDirectionType
@@ -55,16 +56,19 @@ int main(int argc, char* argv[])
 
     getcwd(cwd, sizeof(cwd));
     setupCommands();
-
+    enableHistory();
     while(true) {
-        std::cout << "$ ";
+        // std::cout << "$ ";
+        enableRawMode();
+        input=readlineCus();
+        disableRawMode();
         curr = 0;
         
-        if(!std::getline(std::cin, input)) {
-            // Handle EOF (Ctrl+D)
-            std::cout << std::endl;
-            break;
-        }
+        // if(!std::getline(std::cin, input)) {
+        //     // Handle EOF (Ctrl+D)
+        //     std::cout << std::endl;
+        //     break;
+        // }
         
         if(input.empty()) {
             continue;
