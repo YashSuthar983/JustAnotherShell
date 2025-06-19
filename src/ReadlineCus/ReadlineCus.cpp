@@ -63,7 +63,7 @@ std::vector<std::string> findAllCommands()
 {
     std::string path=getenv("PATH");
     std::vector<std::string> pathvec=split(path,':');
-    std::set<std::string> allcommands;
+    std::set<std::string> allcommands={"echo","exit","cd","type","pwd"};
     for(auto&x:pathvec)
     {
         DIR* dir;
