@@ -131,8 +131,23 @@ std::shared_ptr<Command> Parser::parseRedirectionComm()
     return cmd;
 }
 
+std::shared_ptr<Command> Parser::parsePipeComm()
+{
+    std::shared_ptr<Command> leftInputCom=parseRedirectionComm();
+    std::shared_ptr<Command> rightInputCom;
+    
+    while(check(TOKEN_PIPE))
+    {
+        advance();
+        rightInputCom=parseRedirectionComm();
+        leftInputCom= std::make_shared<PipeCommand>(leftInputCom,rightInputCom);
+        DB("Parsing Pipe Command.")
+    }
+    return leftInputCom;
+}
+
 std::shared_ptr<Command> Parser::parseCommand() {
-    return parseRedirectionComm();
+    return parsePipeComm();
 }
 
 std::shared_ptr<Command> Parser::parse()

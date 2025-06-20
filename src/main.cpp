@@ -57,19 +57,14 @@ int main(int argc, char* argv[])
     getcwd(cwd, sizeof(cwd));
     setupCommands();
     enableHistory();
-    while(true) {
-        // std::cout << "$ ";
+    while(true)
+    {
+
         enableRawMode();
         input=readlineCus();
         disableRawMode();
         curr = 0;
-        
-        // if(!std::getline(std::cin, input)) {
-        //     // Handle EOF (Ctrl+D)
-        //     std::cout << std::endl;
-        //     break;
-        // }
-        
+
         if(input.empty()) {
             continue;
         }

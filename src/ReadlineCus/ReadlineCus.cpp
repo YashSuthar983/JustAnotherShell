@@ -80,7 +80,6 @@ std::vector<std::string> findAllCommands()
     return std::vector<std::string>(allcommands.begin(),allcommands.end());
 }
 
-
 std::string readlineCus()
 {
     std::string str="";
@@ -162,6 +161,7 @@ std::string readlineCus()
             }
             else if(matches.size()>1)
             {
+                std::cout<<"\a";
                 std::string prefix = matches[0];
                 for(auto&x:matches)
                 {
@@ -177,19 +177,21 @@ std::string readlineCus()
                 }
                 else
                 {
+                    std::cout<<"\x07";
                     std::cout<<std::endl;
                     for(auto&x:matches)
                     {
-                        std::cout<<x<<"\t";
+                        std::cout<<x<<"  ";
                     }
                     std::cout<<std::endl;
                 }
             }
+            else std::cout<<"\a";
         }
         else if(c=='\n'||c=='\r')
         {
             std::cout<<std::endl;
-            if(history_bool)commandHistory.push_back(str);
+            if(history_bool&&!str.empty())commandHistory.push_back(str);
             DB("Adding : "+str+" : to the history")
             return str;
         }

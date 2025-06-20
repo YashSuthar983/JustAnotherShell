@@ -2,21 +2,50 @@
 #include "DebuggerLog.h"
 #include <fcntl.h>
 
+void executePathComm(std::string&name,std::vector<std::string>&args)
+{
+    std::string fullPath=getENVPath(name);
+
+    pid_t pid =fork();
+    if (pid==-1)
+    {
+        perror("fork");
+    }
+    else if (pid == 0)
+    {
+        if(fullPath!="")
+        {
+            std::vector<char*> argV;
+            for(std::string&arg : args)argV.push_back(const_cast<char*>(arg.c_str()));
+            argV.push_back(nullptr);
+            DB("Executing command: " + fullPath + " with arguments: " + std::to_string(argV.size()));
+            execv(fullPath.c_str(),argV.data());
+            perror(("execv failed for " + name).c_str());
+            exit(127);
+        }
+        else
+        {
+            std::cout<<name<<": command not found"<<std::endl;
+            exit(127);
+        }
+    }
+    else
+    {
+        int status;
+        waitpid(pid, &status, 0);
+    }
+}
+
 void EchoCommand::execute()
 {
-    std::stringstream output;
-    for(size_t i = 1; i < args.size(); i++) {
-        output << args[i];
-        if(i < args.size() - 1) output << " ";
-    }
-    output << "\n";
-    std::cout<< output.str();
+    executePathComm(name,args);
 }
 
 void ExitCommand::execute() {
     if(args.size() <= 1) exit(0);
     try {
         int value = std::stoi(args[1]);
+        DB("Exiting with code: " + std::to_string(value));
         exit(value);
     } catch(const std::exception& e) {
         std::cerr<<"Only integer return code expected\n";
@@ -86,30 +115,7 @@ void CdCommand::execute()
 
 void SimpleCommand::execute()
 {
-    std::string fullPath=getENVPath(name);
-
-    if(fullPath!="")
-    {
-        pid_t pid=fork();
-        if(pid==-1)perror("fork failed");
-        else if(pid==0)
-        {
-            std::vector<char*> argV;
-            for(std::string&arg : args)argV.push_back(const_cast<char*>(arg.c_str()));
-            argV.push_back(nullptr);
-            DB("Executing command: " + fullPath + " with arguments: " + std::to_string(argV.size()));
-            execv(fullPath.c_str(),argV.data());
-        }
-        else
-        {
-            int status;
-            waitpid(pid,&status,0);
-        }
-    }
-    else
-    {
-        std::cout<<name<<": command not found"<<std::endl;
-    }
+    executePathComm(name,args);
 }
 
 void RedirectCommand::execute()
@@ -146,7 +152,56 @@ void RedirectCommand::execute()
     }
 }
 
+void PipeCommand::execute()
+{
+    DB("PIP COMMAND EXECUTED with "<<cmdinput->name<<"->"<<cmdoutput->name)
+    int fd[2];
+    if (pipe(fd) == -1) {
+        perror("pipe");
+        return;
+    }
+
+    pid_t pid1 = fork();
+    if (pid1 == -1) {
+        perror("fork 1");
+        return;
+    }
+    
+    if (pid1 == 0) {
+        close(fd[0]);
+        dup2(fd[1], STDOUT_FILENO);
+        close(fd[1]);
+        
+        cmdinput->execute();
+        exit(EXIT_SUCCESS);
+    }
+
+    pid_t pid2 = fork();
+    if (pid2 == -1) {
+        perror("fork 2");
+        return;
+    }
+
+    if (pid2 == 0) {
+        close(fd[1]);
+        dup2(fd[0], STDIN_FILENO);
+        close(fd[0]);
+        
+        interpret(cmdoutput);
+        exit(EXIT_SUCCESS);
+    }
+
+    close(fd[0]);
+    close(fd[1]);
+
+    waitpid(pid1, NULL, 0);
+    waitpid(pid2, NULL, 0);
+    
+    DB("PIP COMMAND EXECUTED SUCCESFULLY");
+}
+
 void interpret(const std::shared_ptr<Command>& cmd)
 {
-    cmd->execute();
+    if(std::dynamic_pointer_cast<PipeCommand>(cmd)||std::dynamic_pointer_cast<RedirectCommand>(cmd))cmd->execute();
+    else cmd->execute();
 }

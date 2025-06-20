@@ -30,3 +30,14 @@ struct RedirectCommand : Command
     std::string cmdType() override { return " is an external command\n"; }
     virtual ~RedirectCommand()=default;
 };
+
+struct PipeCommand : Command
+{
+    PipeCommand(std::shared_ptr<Command>& cmdinput,std::shared_ptr<Command>& cmdoutput)
+        :   cmdinput(cmdinput),cmdoutput(cmdoutput){this->name="Pipe";}
+    std::shared_ptr<Command> cmdinput;
+    std::shared_ptr<Command> cmdoutput;
+    void execute() override ;
+    std::string cmdType() override { return " is an external command\n"; }
+    virtual ~PipeCommand()=default;
+};

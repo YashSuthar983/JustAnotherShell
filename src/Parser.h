@@ -22,6 +22,7 @@ class Parser {
     Parser(std::vector<Token> Tokens) : Tokens(std::move(Tokens)) {}
     std::shared_ptr<Command> parseSimpleComm();
     std::shared_ptr<Command> parseRedirectionComm();
+    std::shared_ptr<Command> parsePipeComm();
     std::shared_ptr<Command> parseCommand();
     std::shared_ptr<Command> parse();
 };

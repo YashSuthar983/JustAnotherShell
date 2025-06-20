@@ -100,6 +100,12 @@ std::vector<Token> Scanner::scanToken()
             pos++;
             continue;
         }
+        else if(c=='|')
+        {
+            Tokens.push_back(creatToken(TOKEN_PIPE,"|"));
+            pos++;
+            continue;
+        }
         
         bool isSingleQ = false;
         bool isDoubleQ = false;
