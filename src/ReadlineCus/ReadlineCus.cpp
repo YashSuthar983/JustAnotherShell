@@ -5,6 +5,9 @@
 #include "../DebuggerLog.h"
 #include <sstream>
 #include <set>
+#include <fcntl.h>
+#include <string.h>
+#include "../Global.h"
 
 struct termios orig_termios;
 bool history_bool=false;
@@ -13,6 +16,98 @@ std::vector<std::string> commandHistory;
 
 void enableHistory(){history_bool=true;comhisPos=0;}
 void disableHistory(){history_bool=false;}
+
+void readHistory(const std::string&path)
+{
+    if(path!="")
+    {
+        int fd=open(path.c_str(),O_RDONLY);
+        if (fd<0)
+        {
+            perror("open");
+            return ;
+        }
+        char buffer[4096];
+        ssize_t bytesR;
+        std::string temp;
+        while ((bytesR=read(fd,buffer, sizeof(buffer)))>0)
+        {
+            // printf("%s", buffer);
+            char* p=buffer;
+            char* end=buffer+bytesR;
+            while(p<end)
+            {
+                void* newline_ptr=memchr(p,'\n',end-p);
+                if(newline_ptr)
+                {
+                    
+                    temp.append(p,(char*)newline_ptr-p);
+                    if(!temp.empty())addCmdToHistory(temp);
+                    p=(char*)newline_ptr+1;
+                    temp.clear();
+                }
+                else
+                {
+                    temp.append(p,end-p);
+                    break;
+                }
+            }
+        }
+        if (bytesR <0)
+        {
+            perror(("history: read failed for " + path).c_str());
+        }
+        else
+        {
+            if (!temp.empty())
+            {
+                addCmdToHistory(temp);
+            }
+        }
+        close(fd);
+    }
+    lastHistoryAppenIndex=commandHistory.size();
+}
+
+void writeOrAppHistory(const std::string&str,const std::string&path)
+{
+    int flag=O_WRONLY|O_CREAT;
+    flag|=(str=="-w")?O_TRUNC:O_APPEND;
+    int fd=open(path.c_str(),flag,0644);
+    if(fd<0)
+    {
+        perror("apeend");
+        return;
+    }
+    char newline = '\n';
+
+    for(lastHistoryAppenIndex;lastHistoryAppenIndex<commandHistory.size();lastHistoryAppenIndex++)
+    {
+        write(fd,commandHistory[lastHistoryAppenIndex].c_str(),commandHistory[lastHistoryAppenIndex].size());
+        write(fd, &newline, sizeof(char));
+    }
+}
+
+void loadHistoryOnStartup()
+{
+    if(const char*path=getenv("HISTFILE"))
+    {
+        readHistory(path);
+    }
+}
+
+void writeHistoryOnStartup()
+{
+    if(const char*path=getenv("HISTFILE"))
+    {
+        writeOrAppHistory("-a",path);
+    }
+}
+
+void addCmdToHistory(std::string & str)
+{
+    commandHistory.push_back(str);
+}
 
 void disableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
@@ -145,10 +240,14 @@ std::string readlineCus()
         else if(c=='\t')
         {
             size_t word_st=str.find_last_of(" \t\n",currPos-1);
-            if(word_st!=std::string::npos)word_st=0;
+            if(word_st==std::string::npos)word_st=0;
             else word_st++;
 
+           
+
             std::string str_to_comp=str.substr(word_st,currPos-word_st);
+
+            DB("Tab pressed, looking for completion ( "<<str_to_comp<<") from position: "<< word_st<<" to "<<currPos);
 
             std::vector<std::string> matches=findCompliation(str_to_comp);
 
@@ -191,7 +290,7 @@ std::string readlineCus()
         else if(c=='\n'||c=='\r')
         {
             std::cout<<std::endl;
-            if(history_bool&&!str.empty())commandHistory.push_back(str);
+            if(history_bool&&!str.empty())addCmdToHistory(str);
             DB("Adding : "+str+" : to the history")
             return str;
         }

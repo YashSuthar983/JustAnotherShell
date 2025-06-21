@@ -8,6 +8,7 @@
 extern char cwd[PATH_MAX];
 // extern int indTok;
 extern size_t curr;
+extern size_t lastHistoryAppenIndex;
 
 // Global functions
 std::string getNextToken(std::vector<std::string>& tokens);

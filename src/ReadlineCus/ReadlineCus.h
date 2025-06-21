@@ -15,7 +15,13 @@ extern std::vector<std::string> commandHistory;
 
 void enableHistory();
 void disableHistory();
+void readHistory(const std::string&str);
+void writeOrAppHistory(const std::string&str,const std::string&path);
 
+void writeHistoryOnStartup();
+
+void addCmdToHistory(std::string& str);
+void loadHistoryOnStartup();
 
 void disableRawMode();
 void enableRawMode();

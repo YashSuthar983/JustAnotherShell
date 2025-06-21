@@ -21,4 +21,5 @@ void setupCommands() {
     REGISTERCMD("type", TypeCommand);
     REGISTERCMD("pwd", PwdCommand);
     REGISTERCMD("cd", CdCommand);
+    REGISTERCMD("history", HistoryCommand);
 }

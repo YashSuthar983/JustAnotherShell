@@ -1,6 +1,9 @@
 #include "Executer.h"
 #include "DebuggerLog.h"
 #include <fcntl.h>
+#include "ReadlineCus/ReadlineCus.h"
+#include <string.h>
+#include "Global.h"
 
 void executePathComm(std::string&name,std::vector<std::string>&args)
 {
@@ -46,6 +49,7 @@ void ExitCommand::execute() {
     try {
         int value = std::stoi(args[1]);
         DB("Exiting with code: " + std::to_string(value));
+        writeHistoryOnStartup();
         exit(value);
     } catch(const std::exception& e) {
         std::cerr<<"Only integer return code expected\n";
@@ -198,6 +202,45 @@ void PipeCommand::execute()
     waitpid(pid2, NULL, 0);
     
     DB("PIP COMMAND EXECUTED SUCCESFULLY");
+}
+
+void HistoryCommand::execute()
+{
+    // if(args.size() < 2)
+    // {
+    //     std::cout << "Usage: history <number_of_commands>\n";
+    //     return;
+    // }
+    if(args.size()==3)
+    {
+        if(args[1]=="-r")
+        {
+            readHistory(args[2]);
+        }
+        else if(args[1]=="-w"||args[1]=="-a")
+        {
+            writeOrAppHistory(args[1],args[2]);
+        }
+        return;
+    }
+    
+    int num = commandHistory.size();
+
+    if(args.size()==2)
+    {
+        num = std::stoi(args[1]);
+        if(num <= 0)
+        {
+            std::cout << "Number of commands should be greater than 0.\n";
+            return;
+        }
+    }
+    for(int i = commandHistory.size() - num; i < commandHistory.size(); ++i)
+    {
+        if(i >= 0) {
+            std::cout <<"\t"<<i+1<<"  "<< commandHistory[i] << "\n";
+        }
+    }  
 }
 
 void interpret(const std::shared_ptr<Command>& cmd)

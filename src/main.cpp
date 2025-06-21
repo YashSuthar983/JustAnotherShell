@@ -30,6 +30,8 @@
 #include "ReadlineCus/ReadlineCus.h"
 
 bool debug=false;
+size_t lastHistoryAppenIndex=0;
+
 enum ReDirectionType
 {
   ReInput,
@@ -57,6 +59,7 @@ int main(int argc, char* argv[])
     getcwd(cwd, sizeof(cwd));
     setupCommands();
     enableHistory();
+    loadHistoryOnStartup();
     while(true)
     {
 

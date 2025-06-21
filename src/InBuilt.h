@@ -65,4 +65,9 @@ public:
     void execute() override;
 };
 
+class HistoryCommand : public InBuiltCmd {
+public:
+    void execute() override;
+};
+
 void setupCommands();
